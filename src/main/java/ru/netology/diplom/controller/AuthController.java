@@ -18,10 +18,10 @@ import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import ru.netology.diplom.Error.ErrorLoginOrPassword;
-//import ru.netology.diplom.Repository.FileDatBase;
 import ru.netology.diplom.Model.FileResponse;
 import ru.netology.diplom.Jwt.JwtRequestFilter;
 import ru.netology.diplom.Jwt.JwtUtil;
+import ru.netology.diplom.Model.Users;
 import ru.netology.diplom.Request.LoginRequest;
 import ru.netology.diplom.Service.UserService;
 
@@ -84,19 +84,8 @@ public class AuthController {
 
 
     private String getEncodedPasswordFromDatabase(String email) {
-        NamedParameterJdbcTemplate namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
-        String sql = "SELECT password FROM netology.users WHERE email = :email";
-        Map<String, Object> params = new HashMap<>();
-        params.put("email", email);
-        try {
-            return namedParameterJdbcTemplate.queryForObject(sql, params, String.class);
-        } catch (EmptyResultDataAccessException e) {
-            System.out.println("Пользователь не найден: " + email);
-            return null;
-        } catch (Exception e) {
-            System.out.println("Ошибка при получении пароля: " + e.getMessage());
-            return null;
-        }
+        Users user = userService.getUserByEmail(email);
+        return user != null ? user.getPassword() : null;
     }
 
 
