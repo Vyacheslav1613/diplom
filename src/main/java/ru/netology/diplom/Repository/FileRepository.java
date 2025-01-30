@@ -15,7 +15,11 @@ public interface FileRepository extends JpaRepository<FileEntity, Long> {
 
     FileEntity findByFilename(@Param("filename") String filename);
 
+
     List<FileEntity> findAllByExtension(@Param("extension") String extension);
 
     FileEntity findLatestFileByUsername(@Param("username") String username);
+
+    FileEntity findByFilenameAndUsername(String filename, String username);
+
 }

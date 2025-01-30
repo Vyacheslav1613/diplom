@@ -5,6 +5,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import ru.netology.diplom.Jwt.JwtUtil;
 import ru.netology.diplom.Model.Users;
 import ru.netology.diplom.Repository.UsersRepository;
 
@@ -18,12 +19,14 @@ public class UserService {
     private final UsersRepository usersRepository;
     private final JdbcTemplate jdbcTemplate;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
 
     @Autowired
-    public UserService(UsersRepository usersRepository, JdbcTemplate jdbcTemplate, BCryptPasswordEncoder passwordEncoder) {
+    public UserService(UsersRepository usersRepository, JdbcTemplate jdbcTemplate, BCryptPasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
         this.usersRepository = usersRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
     }
 
     public Users getUserByEmail(String email) {
@@ -107,6 +110,9 @@ public class UserService {
         }
     }
 
+    public String generateToken(String email) {
+        return jwtUtil.generateToken(email);
+    }
 
     private static class UserRowMapper implements RowMapper<User> {
         @Override
