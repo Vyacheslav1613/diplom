@@ -24,9 +24,9 @@ public class RegistrationController {
     @PostMapping("/register")
     public String register(@RequestParam String email, @RequestParam String password) {
         if (usersService.userExists(email)) {
-             return "redirect:/error";
+            return "redirect:/error";
         }
-        usersService.registerUser (email, password);
+        usersService.registerUser(email, password);
         return "redirect:/success";
     }
 

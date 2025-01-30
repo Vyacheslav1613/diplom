@@ -24,7 +24,6 @@ import java.util.stream.Collectors;
 public class FileController {
     private final FileService fileService;
     private final JwtUtil jwtUtil;
-    private String user;
 
     @Autowired
     public FileController(FileService fileService, JwtUtil jwtUtil) {
@@ -108,10 +107,9 @@ public class FileController {
 
     @PutMapping("/file")
     public ResponseEntity<?> renameFile(@RequestParam String filename,
-                                        @RequestBody String newFilenameJson) throws JsonProcessingException {
-
-        String username = user;
-        System.out.println("Filename: " + filename + ", New Filename JSON: " + newFilenameJson);
+                                        @RequestBody String newFilenameJson,
+                                        @RequestHeader("auth-token") String authToken) throws JsonProcessingException {
+        String username = extractUsername(authToken);
 
         FileEntity fileEntity = fileService.findByFilenameAndUsername(filename, username);
 
@@ -129,7 +127,6 @@ public class FileController {
         }
 
         fileEntity.setFilename(newFilename);
-        System.out.println("New Filename: " + newFilename);
 
         try {
             fileService.updateFile(fileEntity);
@@ -141,11 +138,9 @@ public class FileController {
 
 
     private String extractUsername(String authToken) {
-        user = null;
         if (authToken.startsWith("Bearer ")) {
             authToken = authToken.substring(7);
         }
-        user = jwtUtil.extractUsername(authToken);
         return jwtUtil.extractUsername(authToken);
     }
 }

@@ -13,6 +13,7 @@ import java.util.Map;
 public class JwtUtil {
 
     private String SECRET_KEY = "your_secret_key";
+
     public String generateToken(String email) {
         Map<String, Object> claims = new HashMap<>();
         return createToken(claims, email);

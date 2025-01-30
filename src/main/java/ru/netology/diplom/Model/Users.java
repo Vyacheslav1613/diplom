@@ -32,7 +32,8 @@ public class Users {
     private LocalDateTime createdAt;
 
 
-    public Users() {}
+    public Users() {
+    }
 
     public Users(String email, String password) {
         this.email = email;

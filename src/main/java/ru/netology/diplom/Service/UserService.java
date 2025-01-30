@@ -103,7 +103,7 @@ public class UserService {
 
     public void encodeAndUpdatePasswords() {
         List<User> users = getAllUsers();
-        for (User  user : users) {
+        for (User user : users) {
             String rawPassword = user.getPassword();
             String encodedPassword = passwordEncoder.encode(rawPassword);
             updateUserPassword(user.getId(), encodedPassword);

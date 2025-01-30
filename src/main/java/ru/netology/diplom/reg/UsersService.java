@@ -15,7 +15,7 @@ public class UsersService {
         this.usersRepository = usersRepository;
     }
 
-    public void registerUser (String email, String password) {
+    public void registerUser(String email, String password) {
         Users user = new Users(email, password);
         usersRepository.save(user);
     }

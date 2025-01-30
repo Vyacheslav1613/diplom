@@ -13,7 +13,7 @@ select * from netology.users;
 
 select * from netology.admin;
 
-drop table netology.admin cascade;
+drop table netology.users cascade;
 
 drop schema netology cascade;
 
