@@ -1,6 +1,7 @@
 package ru.netology.diplom.controller;
 
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
@@ -16,13 +17,14 @@ import ru.netology.diplom.Service.FileService;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
 public class FileController {
     private final FileService fileService;
-    private String username;
     private final JwtUtil jwtUtil;
+    private String user;
 
     @Autowired
     public FileController(FileService fileService, JwtUtil jwtUtil) {
@@ -35,6 +37,11 @@ public class FileController {
                                         @RequestParam("filename") String filename,
                                         @RequestParam("file") MultipartFile file) {
 
+        String username = extractUsername(authToken);
+        if (username == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid auth token");
+        }
+
         try {
             FileEntity fileEntity = fileService.saveFile(username, filename, file);
             return ResponseEntity.ok(fileEntity);
@@ -46,7 +53,12 @@ public class FileController {
     @DeleteMapping("/file")
     public ResponseEntity<Void> deleteFile(@RequestHeader("auth-token") String authToken,
                                            @RequestParam("filename") String filename) {
-        FileEntity fileEntity = fileService.findByFilename(filename);
+        String username = extractUsername(authToken);
+        if (username == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        FileEntity fileEntity = fileService.findByFilenameAndUsername(filename, username);
         if (fileEntity == null) {
             return ResponseEntity.notFound().build();
         }
@@ -57,7 +69,12 @@ public class FileController {
     @GetMapping("/file")
     public ResponseEntity<ByteArrayResource> downloadFile(@RequestHeader("auth-token") String authToken,
                                                           @RequestParam("filename") String filename) throws IOException {
-        FileEntity fileEntity = fileService.findByFilename(filename);
+        String username = extractUsername(authToken);
+        if (username == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        FileEntity fileEntity = fileService.findByFilenameAndUsername(filename, username);
         if (fileEntity == null) {
             throw new RuntimeException("Файл не найден");
         }
@@ -75,7 +92,11 @@ public class FileController {
 
     @GetMapping("/list")
     public ResponseEntity<List<FileResponse>> listFiles(@RequestHeader("auth-token") String authToken) {
-        isValidToken(authToken);
+        String username = extractUsername(authToken);
+        if (username == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
         List<FileEntity> fileEntities = fileService.findAllByUsername(username);
         List<FileResponse> files = fileEntities.stream()
                 .map(entity -> new FileResponse(entity.getFilename(), entity.getEditedAt(), entity.getSize(),
@@ -85,12 +106,46 @@ public class FileController {
         return ResponseEntity.ok(files);
     }
 
-    private boolean isValidToken(String authToken) {
+    @PutMapping("/file")
+    public ResponseEntity<?> renameFile(@RequestParam String filename,
+                                        @RequestBody String newFilenameJson) throws JsonProcessingException {
+
+        String username = user;
+        System.out.println("Filename: " + filename + ", New Filename JSON: " + newFilenameJson);
+
+        FileEntity fileEntity = fileService.findByFilenameAndUsername(filename, username);
+
+        if (fileEntity == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, String> jsonMap = mapper.readValue(newFilenameJson, Map.class);
+        String newFilename = jsonMap.get("filename");
+
+        FileEntity existingFile = fileService.findByFilenameAndUsername(newFilename, username);
+        if (existingFile != null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("File with new filename already exists");
+        }
+
+        fileEntity.setFilename(newFilename);
+        System.out.println("New Filename: " + newFilename);
+
+        try {
+            fileService.updateFile(fileEntity);
+            return ResponseEntity.ok(fileEntity);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error updating file: " + e.getMessage());
+        }
+    }
+
+
+    private String extractUsername(String authToken) {
+        user = null;
         if (authToken.startsWith("Bearer ")) {
             authToken = authToken.substring(7);
         }
-        username = jwtUtil.extractUsername(authToken);
-        return true;
+        user = jwtUtil.extractUsername(authToken);
+        return jwtUtil.extractUsername(authToken);
     }
 }
-

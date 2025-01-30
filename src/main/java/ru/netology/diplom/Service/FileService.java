@@ -50,5 +50,9 @@ public class FileService {
         return fileRepository.findAllByUsername(username);
     }
 
+    public void updateFile(FileEntity fileEntity) {
+        fileRepository.save(fileEntity);
+    }
+
 }
 

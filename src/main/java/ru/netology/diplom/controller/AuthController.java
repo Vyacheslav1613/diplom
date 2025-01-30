@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.netology.diplom.Error.ErrorLoginOrPassword;
+import ru.netology.diplom.Error.LoginErrorResponse;
 import ru.netology.diplom.Request.LoginRequest;
 import ru.netology.diplom.Service.UserService;
 
@@ -31,16 +32,14 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
-        if (loginRequest.getPassword() == null) {
+        if (loginRequest.getPassword() == null ||
+                userService.getUserByEmail(loginRequest.getLogin()) == null ||
+                userService.getUserByEmail(loginRequest.getLogin()).getPassword() == null) {
+
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ErrorLoginOrPassword(List.of("Ошибка логина или пароля"), List.of("")));
+                    .body(new LoginErrorResponse(port));
         }
 
-        String storedEncodedPassword = userService.getUserByEmail(loginRequest.getLogin()).getPassword();
-        if (storedEncodedPassword == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ErrorLoginOrPassword(List.of("Ошибка логина или пароля"), List.of("Если у вас нет учетной записи, попробуйте зарегистрироваться по адресу localhost:" + port + "/register")));
-        }
 
         if (userService.checkUserPassword(loginRequest.getLogin(), loginRequest.getPassword())) {
             String token = userService.generateToken(loginRequest.getLogin());
@@ -50,7 +49,7 @@ public class AuthController {
                     "message", "Успешная авторизация!"));
         } else {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ErrorLoginOrPassword(List.of("Ошибка логина или пароля"), List.of("")));
+                    .body(new ErrorLoginOrPassword(List.of("Ошибка логина или пароля"), List.of("Если у вас нет учетной записи, попробуйте зарегистрироваться по адресу localhost:" + port + "/register")));
         }
     }
 
