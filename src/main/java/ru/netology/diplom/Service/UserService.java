@@ -21,13 +21,13 @@ public class UserService {
 
     @Autowired
     public UserService(UsersRepository usersRepository, JdbcTemplate jdbcTemplate, BCryptPasswordEncoder passwordEncoder) {
-        this.usersRepository = usersRepository; // Инициализация UserRepos
+        this.usersRepository = usersRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.passwordEncoder = passwordEncoder;
     }
 
     public Users getUserByEmail(String email) {
-        return usersRepository.findByEmail(email); // Вызов метода findByEmail
+        return usersRepository.findByEmail(email);
     }
 
     public static class User {
@@ -35,7 +35,7 @@ public class UserService {
         private String password;
         private String email;
 
-        // Геттеры и сеттеры
+
         public int getId() {
             return id;
         }
@@ -75,40 +75,39 @@ public class UserService {
         return passwordEncoder.matches(rawPassword, storedEncodedPassword);
     }
 
-    // Метод для получения закодированного пароля из базы данных
     private String getEncodedPasswordFromDatabase(String email) {
         String sql = "SELECT password FROM netology.users WHERE email = ?";
         try {
             return jdbcTemplate.queryForObject(sql, new Object[]{email}, String.class);
         } catch (Exception e) {
             System.out.println("Ошибка при получении пароля для пользователя " + email + ": " + e.getMessage());
-            return null; // Возвращаем null, если произошла ошибка
+            return null;
         }
     }
 
-    // Метод для получения всех пользователей
+
     public List<User> getAllUsers() {
-        String sql = "SELECT id, email, password FROM netology.users"; // Запрос для получения всех пользователей
+        String sql = "SELECT id, email, password FROM netology.users";
         return jdbcTemplate.query(sql, new UserRowMapper());
     }
 
-    // Метод для обновления пароля пользователя
+
     public void updateUserPassword(int userId, String encodedPassword) {
         String sql = "UPDATE netology.users SET password = ? WHERE id = ?";
         jdbcTemplate.update(sql, encodedPassword, userId);
     }
 
-    // Метод для кодирования и обновления всех паролей
+
     public void encodeAndUpdatePasswords() {
         List<User> users = getAllUsers();
         for (User  user : users) {
-            String rawPassword = user.getPassword(); // Получаем открытый пароль
-            String encodedPassword = passwordEncoder.encode(rawPassword); // Кодируем пароль
-            updateUserPassword(user.getId(), encodedPassword); // Обновляем пароль в базе данных
+            String rawPassword = user.getPassword();
+            String encodedPassword = passwordEncoder.encode(rawPassword);
+            updateUserPassword(user.getId(), encodedPassword);
         }
     }
 
-    // RowMapper для преобразования результата запроса в объект User
+
     private static class UserRowMapper implements RowMapper<User> {
         @Override
         public User mapRow(ResultSet rs, int rowNum) throws SQLException {

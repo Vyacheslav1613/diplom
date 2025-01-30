@@ -18,32 +18,34 @@ import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import ru.netology.diplom.Error.ErrorLoginOrPassword;
+import ru.netology.diplom.Model.FileEntity;
 import ru.netology.diplom.Model.FileResponse;
 import ru.netology.diplom.Jwt.JwtRequestFilter;
 import ru.netology.diplom.Jwt.JwtUtil;
 import ru.netology.diplom.Model.Users;
+import ru.netology.diplom.Repository.FileRepository;
 import ru.netology.diplom.Request.LoginRequest;
 import ru.netology.diplom.Service.UserService;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 public class AuthController {
     public String username;
     private final UserService userService;
-    private final JdbcTemplate jdbcTemplate;
     private final JwtUtil jwtUtil;
+    private final FileRepository fileRepository;
 
     @Value("${server.port}")
     public int port;
 
-
     @Autowired
-    public AuthController(UserService userService, JdbcTemplate jdbcTemplate, JwtRequestFilter jwtRequestFilter, JwtUtil jwtUtil) {
+    public AuthController(UserService userService, JwtUtil jwtUtil, FileRepository fileRepository) {
         this.userService = userService;
-        this.jdbcTemplate = jdbcTemplate;
         this.jwtUtil = jwtUtil;
+        this.fileRepository = fileRepository;
     }
 
     @GetMapping("/login")
@@ -105,33 +107,37 @@ public class AuthController {
     public ResponseEntity<Map<String, Object>> uploadFile(@RequestHeader("auth-token") String authToken,
                                                           @RequestParam("filename") String filename,
                                                           @RequestParam("file") MultipartFile file) {
-
-        NamedParameterJdbcTemplate namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
         Map<String, Object> response = new HashMap<>();
         response.put("filename", filename);
-        response.put("editedAt", System.currentTimeMillis()); // Время редактирования
+        response.put("editedAt", System.currentTimeMillis());
         response.put("size", file.getSize());
         response.put("error", false);
         response.put("selected", false);
-        response.put("extension", FilenameUtils.getExtension(file.getOriginalFilename())); // Получение расширения
+        response.put("extension", FilenameUtils.getExtension(file.getOriginalFilename()));
 
-        // Преобразование файла в массив байтов
         byte[] fileData;
         try {
-            fileData = file.getBytes(); // Получение содержимого файла
+            fileData = file.getBytes();
         } catch (IOException e) {
             response.put("error", true);
             response.put("message", "Error reading file data: " + e.getMessage());
             return ResponseEntity.badRequest().body(response);
         }
 
-        String sql = "INSERT INTO netology.admin (filename, edited_at, size, is_error, is_selected, extension, file_data) " +
-                "VALUES (:filename, :editedAt, :size, :error, :selected, :extension, :fileData)";
 
-        response.put("fileData", fileData); // Добавление содержимого файла в ответ
+        FileEntity fileEntity = new FileEntity();
+        fileEntity.setUsername(username);
+        fileEntity.setFilename(filename);
+        fileEntity.setEditedAt(System.currentTimeMillis());
+        fileEntity.setSize(file.getSize());
+        fileEntity.setIsError(false);
+        fileEntity.setIsSelected(false);
+        fileEntity.setExtension(FilenameUtils.getExtension(file.getOriginalFilename()));
+        fileEntity.setFileData(fileData);
+
 
         try {
-            namedParameterJdbcTemplate.update(sql, response);
+            fileRepository.save(fileEntity);
         } catch (Exception e) {
             response.put("error", true);
             response.put("message", "Database error: " + e.getMessage());
@@ -141,117 +147,68 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-
     @DeleteMapping("/file")
     public ResponseEntity<Void> deleteFile(@RequestHeader("auth-token") String authToken,
                                            @RequestParam("filename") String filename) {
-        NamedParameterJdbcTemplate namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
-
-
-        // Параметризованный SQL-запрос для удаления записи
-        String sql = "DELETE FROM netology." + username + " WHERE filename = :filename";
-
-        SqlParameterSource parameters = new MapSqlParameterSource()
-                .addValue("filename", filename);
-
-        int rowsDeleted = namedParameterJdbcTemplate.update(sql, parameters);
-
-        if (rowsDeleted == 0) {
+        FileEntity fileEntity = fileRepository.findByFilename(filename);
+        if (fileEntity == null) {
             return ResponseEntity.notFound().build();
         }
 
-        return ResponseEntity.noContent().build(); // Успешное удаление
+        fileRepository.delete(fileEntity);
+        return ResponseEntity.noContent().build();
     }
-
 
     @GetMapping("/file")
     public ResponseEntity<ByteArrayResource> downloadFile(
             @RequestHeader("auth-token") String authToken,
             @RequestParam("filename") String filename) throws IOException {
-        NamedParameterJdbcTemplate namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
-
-        Map<String, Object> params = new HashMap<>();
-        params.put("filename", filename);
-
-        byte[] fileData = namedParameterJdbcTemplate.queryForObject(
-                "SELECT file_data FROM netology." + username + " WHERE filename = :filename",
-                params,
-                byte[].class
-        );
-
-        if (fileData == null || fileData.length == 0) {
+        FileEntity fileEntity = fileRepository.findByFilename(filename);
+        if (fileEntity == null) {
             throw new RuntimeException("Файл не найден");
         }
 
-        ByteArrayResource resource = new ByteArrayResource(fileData);
+        ByteArrayResource resource = new ByteArrayResource(fileEntity.getFileData());
 
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentDispositionFormData("attachment", filename); // Скачивание файла
+        headers.setContentDispositionFormData("attachment", filename);
         headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
 
         return ResponseEntity.ok()
                 .headers(headers)
-                .contentLength(fileData.length)
+                .contentLength(fileEntity.getFileData().length)
                 .body(resource);
     }
 
     @PutMapping("/file")
     public ResponseEntity<Void> updateFilename(@RequestParam String filename,
                                                @RequestBody String newFilenameJson) throws JsonProcessingException {
-
-        // Используем Jackson для парсинга JSON
         ObjectMapper mapper = new ObjectMapper();
         Map<String, String> jsonMap = mapper.readValue(newFilenameJson, Map.class);
-
-        // Извлекаем новое имя файла из карты
         String newFilename = jsonMap.get("filename");
 
-        NamedParameterJdbcTemplate namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
-        Map<String, Object> params = new HashMap<>();
-        params.put("oldFilename", filename);
-        params.put("newFilename", newFilename);
-
-        int rowsUpdated = namedParameterJdbcTemplate.update(
-                "UPDATE netology." + username + " SET filename = :newFilename WHERE filename = :oldFilename",
-                params
-        );
-
-        if (rowsUpdated > 0) {
-            return new ResponseEntity<>(HttpStatus.OK);
-        } else {
+        FileEntity fileEntity = fileRepository.findByFilename(filename);
+        if (fileEntity == null) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+
+        fileEntity.setFilename(newFilename);
+        fileRepository.save(fileEntity);
+
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
-    //
+
     @GetMapping("/list")
     public ResponseEntity<List<FileResponse>> listFiles(@RequestHeader("auth-token") String authToken) {
         isValidToken(authToken);
 
-        List<FileResponse> files = getFilesFromDatabase();
-        return ResponseEntity.ok(files);
-    }
+        List<FileEntity> fileEntities = fileRepository.findAllByUsername(username);
 
-    private List<FileResponse> getFilesFromDatabase() {
-        NamedParameterJdbcTemplate namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
-        String tableName = "netology." + username.toLowerCase(); // Форматируем имя таблицы
-
-        // Параметризованный SQL-запрос
-        String sql = "SELECT filename, edited_at, size, extension "
-                + "FROM netology." + username;
-
-        SqlParameterSource parameters = new MapSqlParameterSource()
-                .addValue("username", tableName);
-
-        List<FileResponse> files = namedParameterJdbcTemplate.query(sql, parameters, (rs, rowNum) -> {
-            String filename = rs.getString("filename");
-            long editedAt = rs.getLong("edited_at");
-            long size = rs.getLong("size");
-            String ext = rs.getString("extension");
-
-            // Создаем объект FileResponse с правильными значениями
-            return new FileResponse(filename, editedAt, size, false, false, ext);
-        });
+        List<FileResponse> files = fileEntities.stream()
+                .map(entity -> new FileResponse(entity.getFilename(), entity.getEditedAt(), entity.getSize(),
+                        entity.getIsError(), entity.getIsSelected(), entity.getExtension()))
+                .collect(Collectors.toList());
 
         if (files.isEmpty()) {
             System.out.println("No records found for user: " + username);
@@ -259,8 +216,10 @@ public class AuthController {
             System.out.println("Found " + files.size() + " files for user: " + username);
         }
 
-        return files;
+        return ResponseEntity.ok(files);
     }
+
+
 
 
     private boolean isValidToken(String authToken) {
@@ -268,10 +227,6 @@ public class AuthController {
             authToken = authToken.substring(7);
         }
         username = jwtUtil.extractUsername(authToken);
-        int atIndex = username.indexOf('@');
-        if (atIndex != -1) {
-            username = username.substring(0, atIndex); // Берем все символы от начала до позиции перед символом '@'
-        }
         return true;
     }
 }

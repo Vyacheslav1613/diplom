@@ -12,41 +12,39 @@ import java.time.LocalDateTime;
 @Table(schema = "netology", name = "users")
 public class Users {
 
-    // Геттеры и сеттеры
+
     @Getter
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // Автоматически увеличиваемый идентификатор
+    private Long id;
 
     @Column(nullable = false)
-    private String password; // Пароль (хранится в зашифрованном виде)
+    private String password;
 
     @Setter
     @Getter
     @Column(nullable = false, unique = true, length = 100)
-    private String email; // Электронная почта
+    private String email;
 
     @Setter
     @Getter
     @Column(name = "created_at", columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-    private LocalDateTime createdAt; // Дата и время создания записи
+    private LocalDateTime createdAt;
 
-    // Конструктор
+
     public Users() {}
 
     public Users(String email, String password) {
         this.email = email;
-        this.password = encodePassword(password); // Кодируем пароль при создании
-        this.createdAt = LocalDateTime.now(); // Устанавливаем дату создания
+        this.password = encodePassword(password);
+        this.createdAt = LocalDateTime.now();
     }
 
-    // Метод для кодирования пароля
     private String encodePassword(String password) {
         PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
         return passwordEncoder.encode(password);
     }
 
-    // Метод для проверки пароля
     public boolean checkPassword(String rawPassword) {
         PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
         return passwordEncoder.matches(rawPassword, this.password);

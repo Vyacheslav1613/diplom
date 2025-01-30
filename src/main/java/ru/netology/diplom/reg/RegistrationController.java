@@ -23,11 +23,20 @@ public class RegistrationController {
 
     @PostMapping("/register")
     public String register(@RequestParam String email, @RequestParam String password) {
+        if (usersService.userExists(email)) {
+             return "redirect:/error";
+        }
         usersService.registerUser (email, password);
         return "redirect:/success";
     }
+
     @GetMapping("/success")
     public String success() {
         return "success";
+    }
+
+    @GetMapping("/error")
+    public String error() {
+        return "error";
     }
 }

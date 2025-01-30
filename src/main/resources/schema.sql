@@ -30,6 +30,7 @@ WHERE email = 'new@mail.ru';
 
 CREATE TABLE if not exists netology.files (
     id SERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
     filename VARCHAR(255) NOT NULL,
     edited_at BIGINT NOT NULL,
     size BIGINT NOT NULL,
@@ -39,9 +40,10 @@ CREATE TABLE if not exists netology.files (
     file_data BYTEA
 );
 
-select id from netology.admin;
 
-drop table netology.admin;
+select * from netology.files;
+
+drop table netology.files;
 
 select * from netology.users;
 

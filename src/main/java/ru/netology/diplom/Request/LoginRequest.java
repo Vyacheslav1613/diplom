@@ -10,7 +10,6 @@ public class LoginRequest {
     @NotBlank(message = "Пароль не может быть пустым")
     private String password;
 
-    // Геттеры и сеттеры
     public String getLogin() {
         return login;
     }

@@ -14,7 +14,7 @@ import java.io.IOException;
 @Component
 public class JwtRequestFilter extends OncePerRequestFilter {
 
-    private final String secretKey = "your_secret_key"; // Ваш секретный ключ
+    private final String secretKey = "your_secret_key";
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
@@ -32,7 +32,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                         .setSigningKey(secretKey)
                         .parseClaimsJws(jwt)
                         .getBody();
-                email = claims.getSubject(); // Получаем имя пользователя
+                email = claims.getSubject();
             } catch (Exception e) {
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
                 return;
